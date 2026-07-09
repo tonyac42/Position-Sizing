@@ -13,3 +13,15 @@ Run the engine tests with:
 ```bash
 PYTHONPATH=packages/sizer_engine pytest -q
 ```
+
+
+
+View the UI shell locally with:
+
+```bash
+cd tools/ui
+npm run dev
+# open http://localhost:5173
+```
+
+The current UI shell is static and intentionally contains no sizing logic; future UI work should call the `/v1` API.

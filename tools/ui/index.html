@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sizer UI</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+      main {
+        width: min(920px, calc(100vw - 48px));
+        padding: 40px;
+        border: 1px solid #334155;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #111827 0%, #1e293b 100%);
+        box-shadow: 0 24px 80px rgb(0 0 0 / 35%);
+      }
+      .eyebrow {
+        color: #38bdf8;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 12px 0;
+        font-size: clamp(2.5rem, 7vw, 5rem);
+        line-height: 0.95;
+      }
+      p {
+        max-width: 68ch;
+        color: #cbd5e1;
+        font-size: 1.1rem;
+        line-height: 1.7;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 28px;
+      }
+      .card {
+        padding: 18px;
+        border: 1px solid #334155;
+        border-radius: 16px;
+        background: rgb(15 23 42 / 70%);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        color: #f8fafc;
+      }
+      code {
+        color: #bae6fd;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Universal position sizing</div>
+      <h1>Sizer</h1>
+      <p>
+        This is the runnable UI shell for the Sizer product. It intentionally does not perform sizing in the browser:
+        future forms and visualizations should call the <code>/v1</code> API so the engine remains the single source of truth.
+      </p>
+      <section class="cards" aria-label="Planned UI surfaces">
+        <div class="card"><strong>Wizard & expert forms</strong>Progressive trade-entry flows will collect canonical sizing requests.</div>
+        <div class="card"><strong>Constraint stack</strong>A waterfall chart will highlight the binding layer from the API response.</div>
+        <div class="card"><strong>Diagnostics</strong>Warnings, drawdown paths, and scenario comparisons will render from engine output.</div>
+      </section>
+    </main>
+  </body>
+</html>
