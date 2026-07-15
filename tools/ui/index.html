@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sizer UI</title>
+    <style>
+      :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
+      body { margin: 0; }
+      header { padding: 24px 32px; color: white; background: linear-gradient(135deg, #0f172a, #1e40af); }
+      main { display: grid; gap: 20px; padding: 24px; }
+      .panel { padding: 18px; border: 1px solid #cbd5e1; border-radius: 16px; background: white; box-shadow: 0 8px 24px rgb(15 23 42 / 8%); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+      label { display: grid; gap: 6px; font-weight: 700; font-size: 0.9rem; }
+      input, select, button { min-height: 38px; border: 1px solid #94a3b8; border-radius: 10px; padding: 8px 10px; font: inherit; }
+      button { cursor: pointer; border: 0; color: white; background: #2563eb; font-weight: 800; }
+      button.secondary { background: #475569; }
+      button.danger { background: #be123c; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+      .scenario-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px; }
+      .warnings { padding: 12px; border-radius: 12px; color: #7f1d1d; background: #fee2e2; border: 1px solid #fecaca; }
+      .refusal { padding: 12px; border-radius: 12px; color: #713f12; background: #fef3c7; border: 1px solid #fde68a; }
+      .recommendation { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+      .metric { padding: 10px; border-radius: 12px; background: #eff6ff; }
+      .metric strong { display: block; font-size: 1.25rem; }
+      .bar-row { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; margin: 10px 0; }
+      .bar-wrap { background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+      .bar { min-width: 3px; height: 22px; background: #38bdf8; }
+      .bar.binding { background: #f97316; }
+      .reason { color: #475569; font-size: 0.85rem; }
+      pre { overflow: auto; padding: 12px; background: #0f172a; color: #e2e8f0; border-radius: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Sizer</h1>
+      <p>API-backed position sizing. No sizing math runs in this browser app.</p>
+    </header>
+    <main>
+      <section class="panel">
+        <label>API base URL <input id="apiBase" value="http://localhost:8000" /></label>
+        <p>Local development uses <code>SIZER_DEV_MODE=1</code>. For authenticated mode, add a bearer token in the source request path later.</p>
+      </section>
+      <section id="forms" class="scenario-layout"></section>
+      <section class="panel actions">
+        <button id="submitOne">Submit scenario</button>
+        <button id="duplicate" class="secondary">Duplicate scenario</button>
+        <button id="compare" class="secondary">Compare scenarios</button>
+      </section>
+      <section id="results" class="scenario-layout"></section>
+    </main>
+    <script>
+      const API_BASE_DEFAULT = 'http://localhost:8000';
+      const scenarioDefaults = {
+        bankroll: 10000,
+        trade_type: 'prediction',
+        edge_source: 'guess',
+        sample_size: 120,
+        entry_price: 0.30,
+        expected_time_in_trade_days: 180,
+        payoff_structure: 'binary',
+        structural_max_loss: 0.30,
+        edge_estimate: { win_probability: 0.50 },
+        exploration_override: true
+      };
+      let scenarios = [structuredClone(scenarioDefaults)];
+
+      const tradeTypes = ['auto', 'lottery', 'premium', 'position', 'shortterm', 'prediction', 'trading'];
+      const edgeSources = ['exact_math', 'live_track_record', 'backtest', 'related_experience', 'guess'];
+      const payoffStructures = ['binary', 'continuous', 'capped', 'unbounded'];
+
+      function input(name, label, value, type = 'number', placeholder = '') {
+        return `<label>${label}<input data-field="${name}" type="${type}" value="${value ?? ''}" placeholder="${placeholder}" /></label>`;
+      }
+      function select(name, label, value, options) {
+        return `<label>${label}<select data-field="${name}">${options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join('')}</select></label>`;
+      }
+      function fieldsFor(scenario, index) {
+        const type = scenario.trade_type;
+        const common = [
+          select('trade_type', 'Trade type', type, tradeTypes),
+          input('bankroll', 'Bankroll', scenario.bankroll, 'number'),
+          select('edge_source', 'Edge source', scenario.edge_source, edgeSources),
+          input('sample_size', 'Sample size', scenario.sample_size, 'number', '0'),
+          input('kelly_fraction', 'Kelly fraction', scenario.kelly_fraction, 'number', 'default 0.25'),
+          input('per_trade_risk_cap', 'Risk cap', scenario.per_trade_risk_cap, 'number', 'default 0.02'),
+          input('volatility_cap', 'Vol cap', scenario.volatility_cap, 'number', 'default 0.01'),
+          input('expected_time_in_trade_days', 'Days in trade', scenario.expected_time_in_trade_days, 'number', '1')
+        ];
+        const edge = scenario.edge_estimate || {};
+        const prediction = [
+          input('entry_price', 'Contract / entry price', scenario.entry_price, 'number'),
+          input('structural_max_loss', 'Structural max loss', scenario.structural_max_loss, 'number'),
+          input('edge_estimate.win_probability', 'Claimed win probability', edge.win_probability, 'number'),
+          select('payoff_structure', 'Payoff', scenario.payoff_structure || 'binary', payoffStructures)
+        ];
+        const trading = [
+          input('entry_price', 'Entry price', scenario.entry_price, 'number'),
+          input('stop_price', 'Stop price', scenario.stop_price, 'number'),
+          input('volatility', 'Volatility / ATR', scenario.volatility, 'number'),
+          input('edge_estimate.expectancy_r', 'Expectancy R', edge.expectancy_r, 'number')
+        ];
+        const premium = [
+          input('structural_max_loss', 'Structural max loss', scenario.structural_max_loss, 'number'),
+          input('edge_estimate.outcomes', 'Outcomes JSON', JSON.stringify(edge.outcomes || [[0.9, 0.1], [0.1, -1]]), 'text'),
+          select('payoff_structure', 'Payoff', scenario.payoff_structure || 'capped', payoffStructures)
+        ];
+        let relevant = [];
+        if (type === 'prediction') relevant = prediction;
+        else if (type === 'premium' || type === 'lottery') relevant = premium;
+        else relevant = trading;
+        return `<article class="panel" data-index="${index}"><h2>Scenario ${index + 1}</h2><div class="grid">${common.concat(relevant).join('')}</div></article>`;
+      }
+      function renderForms() {
+        document.querySelector('#forms').innerHTML = scenarios.map(fieldsFor).join('');
+        document.querySelectorAll('[data-field]').forEach(el => el.addEventListener('input', updateScenario));
+      }
+      function coerce(value, type) {
+        if (value === '') return undefined;
+        if (type === 'number') return Number(value);
+        return value;
+      }
+      function updateScenario(event) {
+        const card = event.target.closest('[data-index]');
+        const scenario = scenarios[Number(card.dataset.index)];
+        const field = event.target.dataset.field;
+        let value = coerce(event.target.value, event.target.type);
+        if (field === 'edge_estimate.outcomes') value = value ? JSON.parse(value) : undefined;
+        if (field.startsWith('edge_estimate.')) {
+          scenario.edge_estimate ||= {};
+          const key = field.split('.')[1];
+          if (value === undefined) delete scenario.edge_estimate[key]; else scenario.edge_estimate[key] = value;
+        } else if (value === undefined) {
+          delete scenario[field];
+        } else {
+          scenario[field] = value;
+        }
+        if (field === 'trade_type') renderForms();
+      }
+      function requestFromScenario(scenario) {
+        return JSON.parse(JSON.stringify({
+          ...scenario,
+          edge_estimate: scenario.edge_estimate || { expectancy_r: 0.2 },
+          field_confidence: scenario.field_confidence || {}
+        }));
+      }
+      async function apiFetch(path, body) {
+        const base = document.querySelector('#apiBase').value || API_BASE_DEFAULT;
+        const response = await fetch(`${base}${path}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const payload = await response.json();
+        return { status: response.status, payload };
+      }
+      function fmtPct(value) { return `${(Number(value || 0) * 100).toFixed(2)}%`; }
+      function renderResult(output, index) {
+        if (output.refused) {
+          return `<article class="panel"><h2>Scenario ${index + 1} refused</h2><div class="refusal"><strong>Refusal</strong><pre>${JSON.stringify(output.metadata?.needed_to_proceed || output.diagnostics, null, 2)}</pre></div></article>`;
+        }
+        const rec = output.recommendation || {};
+        const warnings = output.diagnostics?.warnings || [];
+        const caps = output.explanation?.per_layer_cap_table || [];
+        const maxLog = Math.max(...caps.map(c => Math.log10(Number(c.cap_size || 0) + 1)), 1);
+        return `<article class="panel"><h2>Scenario ${index + 1} result</h2>
+          ${warnings.length ? `<div class="warnings"><strong>Warnings</strong><ul>${warnings.map(w => `<li>${w}</li>`).join('')}</ul></div>` : ''}
+          <p>${output.metadata?.human_readable_summary || ''}</p>
+          <div class="recommendation">
+            <div class="metric">Size<strong>${Number(rec.size_native_units || 0).toFixed(2)}</strong></div>
+            <div class="metric">% bankroll<strong>${fmtPct(rec.size_pct_bankroll)}</strong></div>
+            <div class="metric">% full Kelly<strong>${fmtPct(rec.size_pct_full_kelly)}</strong></div>
+            <div class="metric">Dollar risk<strong>$${Number(rec.dollar_risk || 0).toFixed(2)}</strong></div>
+            <div class="metric">% risk<strong>${fmtPct(rec.percent_risk)}</strong></div>
+          </div>
+          <h3>Constraint stack — binding: ${output.explanation?.binding_constraint}</h3>
+          ${caps.map(cap => {
+            const width = Math.max(2, (Math.log10(Number(cap.cap_size || 0) + 1) / maxLog) * 100);
+            return `<div class="bar-row"><div><strong>${cap.layer}</strong><div class="reason">${cap.reason}</div></div><div class="bar-wrap"><div class="bar ${cap.binding ? 'binding' : ''}" style="width:${width}%"></div></div></div>`;
+          }).join('')}
+        </article>`;
+      }
+      async function submitOne() {
+        const { payload } = await apiFetch('/v1/size', requestFromScenario(scenarios[0]));
+        document.querySelector('#results').innerHTML = renderResult(payload, 0);
+      }
+      async function compare() {
+        const { payload } = await apiFetch('/v1/scenarios/compare', scenarios.map(requestFromScenario));
+        document.querySelector('#results').innerHTML = payload.map(renderResult).join('');
+      }
+      document.querySelector('#submitOne').addEventListener('click', submitOne);
+      document.querySelector('#duplicate').addEventListener('click', () => { scenarios = [scenarios[0], structuredClone(scenarios[0])]; renderForms(); });
+      document.querySelector('#compare').addEventListener('click', compare);
+      renderForms();
+    </script>
+  </body>
+</html>

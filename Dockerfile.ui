@@ -1,0 +1,5 @@
+FROM node:22-alpine
+WORKDIR /app
+COPY tools/ui ./
+EXPOSE 5173
+CMD ["npm", "run", "dev"]
