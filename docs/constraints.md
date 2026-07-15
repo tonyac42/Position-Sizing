@@ -23,3 +23,8 @@ Sizer multiplies effective per-unit risk for gaps, heavy tails, premium selling,
 ## Layer 5 — Bankroll dynamics
 
 Sizer recalculates against current bankroll and discounts long-dated concentrated prediction/position trades for capital lockup. The current default lockup discount scales down after 90 days with a floor at 50%. To loosen this layer, shorten the holding period or diversify locked capital across independent strategies.
+# Constraint Concepts
+
+Sizer reports a cap table so users can see the binding constraint: fractional Kelly, exploration gates, per-trade risk, volatility, portfolio heat, correlation bucket, capacity, and capital lockup.
+
+Warnings link to doc slugs in future UI work: `edge-uncertainty`, `premium-tail-risk`, `capacity-limited`, `stop-reliability`, and `capital-lockup`.

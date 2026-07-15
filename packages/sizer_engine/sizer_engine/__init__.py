@@ -37,3 +37,7 @@ __all__ = [
     "continuous_kelly",
     "generalized_kelly",
 ]
+from .models import *
+from .kelly import binary_kelly, continuous_kelly, generalized_kelly
+
+__all__ = ["size_trade", "binary_kelly", "continuous_kelly", "generalized_kelly"]
