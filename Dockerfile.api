@@ -1,8 +1,10 @@
 FROM python:3.12-slim
+RUN useradd -m runner
 WORKDIR /app
 COPY packages ./packages
 COPY apps ./apps
+RUN pip install --no-cache-dir "fastapi>=0.110" "uvicorn>=0.27"
 ENV PYTHONPATH=/app/packages/sizer_engine:/app/apps/api
-ENV SIZER_DEV_MODE=1
 EXPOSE 8000
+USER runner
 CMD ["python", "-m", "uvicorn", "sizer_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

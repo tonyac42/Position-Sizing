@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 .env
+*.env
 sizer.sqlite3
 node_modules/
 dist/
