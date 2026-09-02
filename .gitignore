@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+# *.env: catches variant .env filenames too (e.g. .env.local), not just the exact ".env".
 .env
 *.env
 sizer.sqlite3
